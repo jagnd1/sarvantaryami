@@ -1,0 +1,52 @@
+
+services:
+  llm_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.llm
+    container_name: llm_cont
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    platform: linux/arm64
+    restart: unless-stopped
+    command: serve
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  fmcb_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.fmcb
+    container_name: fmcb_cont
+    ports:
+      - "8002:8002"
+    volumes:
+      - .:/fmcb
+    depends_on:
+      - llm_service
+      - qdrant_server
+    environment:
+      - OLLAMA_HOST=http://llm_service:11434
+      - QDRANT_HOST=http://qdrant:6333
+      - DB_URI=postgresql+psycopg2://entity:password@host.docker.internal:5433/entdb
+    working_dir: /fmcb
+    platform: linux/arm64
+    restart: unless-stopped
+
+  qdrant_server:
+    image: qdrant/qdrant
+    container_name: qdrant_cont
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  qdrant_data:
