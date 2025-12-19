@@ -14,8 +14,8 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain.agents import AgentExecutor
 
-from services.sql_agent import llm
-from services.rag_agent import intent_docs, embeddings
+from adapters.agents.sql_agent import llm
+from adapters.agents.rag_agent import intent_docs, embeddings
 
 def generate_api_agent_intents_from_openapi(api_spec_dict: dict):
     info_sect = api_spec_dict.get("info", {})
@@ -52,7 +52,7 @@ def init(opeapi_json_file_path: str):
                                              allow_dangerous_requests=True,
                                              verbose=True)
 
-api_sub_agent:AgentExecutor = init("./data/openapi.json")
+api_sub_agent:AgentExecutor = init("infrastructure/openapi.json")
 
 # define the agent state
 class ApiAgentState(TypedDict):

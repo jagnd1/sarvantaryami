@@ -4,7 +4,7 @@ from qdrant_client.http.models import Distance, VectorParams
 from langchain_ollama import OllamaEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langchain.chains.retrieval_qa.base import RetrievalQA
-from services.sql_agent import llm
+from adapters.agents.sql_agent import llm
 from langchain_core.documents import Document
 
 # embeddings

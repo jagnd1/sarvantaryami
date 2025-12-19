@@ -13,8 +13,8 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from fastapi import UploadFile, File
 
-from services.rag_agent import qdrant_vectorstore, llm
-from services.api_agent import intent_vectorstore
+from adapters.agents.rag_agent import qdrant_vectorstore, llm
+from adapters.agents.api_agent import intent_vectorstore
 
 SUPPORTED_LOADERS = {
     ".pdf": PyPDFLoader,

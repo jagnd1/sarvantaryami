@@ -57,7 +57,7 @@ def select_table_node_fn(state: SqlAgentState) -> SqlAgentState:
 def generate_execute_sql_node_fn(state: SqlAgentState) -> SqlAgentState:
     if not state["selected_table"]:
         raise ValueError("no table selected for SQL generation")
-    print(f"selected table: {state["selected_table"]}")
+    print(f"selected table: {state['selected_table']}")
     schema = db.get_table_info([state["selected_table"]])
     sql_query = sql_gen_chain.invoke({
         "input": state["input"],
