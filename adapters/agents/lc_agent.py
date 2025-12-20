@@ -1,6 +1,6 @@
 from typing import TypedDict, Optional
 from langchain_core.runnables import Runnable, RunnableLambda
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import StateGraph, END
 
 # Import actual implementations
@@ -8,6 +8,9 @@ from langgraph.graph import StateGraph, END
 from adapters.agents.sql_agent import llm, sql_subgraph
 from adapters.agents.rag_agent import rag_chain_base
 from adapters.agents.api_agent import api_subgraph, intent_vectorstore
+
+import logging
+logger = logging.getLogger(__name__)
 
 class AgentState(TypedDict):
     input: str
@@ -66,8 +69,10 @@ class SarvantaryamiAgent:
 
     def _rag_node_fn(self, state: AgentState) -> AgentState:
         query = state["input"]
+        logger.info(f"[Router] Routing to RAG for: {query}")
         retrieved_docs = rag_chain_base.retriever.get_relevant_documents(query)
         docs = [doc.page_content for doc in retrieved_docs]
+        logger.info(f"[RAG] Retrieved {len(docs)} documents")
         context = "\n".join(docs) if docs else "No relevant documents found."
         
         rag_prompt = ChatPromptTemplate.from_messages([
@@ -89,22 +94,41 @@ class SarvantaryamiAgent:
         return {"input": state["input"], "result": str(response)}
 
     def _decide_next_node(self, state: AgentState) -> str:
-        # 1. Keyword Search
+        # 1. Semantic Search (primary)
+        semantic_match = self._semantic_search(state)
+        if semantic_match:
+            logger.info(f"[Router] Semantic Match Found: {semantic_match}")
+            return semantic_match
+            
+        # 2. Keyword Search (fallback for specific syntax)
         keyword_match = self._keyword_search(state)
         if keyword_match:
+             logger.info(f"[Router] Keyword Match Found: {keyword_match}")
              return keyword_match
         
-        # 2. Semantic Search (Optional/Fallback)
-        # For now, per original logic, we fallback to default if keywords fail, 
-        # but the original code had semantic_search commented out or as a secondary check.
-        # Let's re-enable basic semantic search if intended, or stick to default.
+        logger.info("--- [Router] Falling back to Default LLM ---")
         return "default_llm"
+
+    def _semantic_search(self, state: AgentState) -> Optional[str]:
+        query = state["input"]
+        # Use relevance threshold (lower distance is better for Cosine Distance)
+        results_with_score = intent_vectorstore.similarity_search_with_score(query, k=1)
+        if not results_with_score:
+            return None
+        
+        doc, score = results_with_score[0]
+        match_id = doc.metadata.get('id')
+        logger.info(f"[Router] Semantic check: result='{match_id}', score={score:.4f}, query='{query}'")
+
+        if score < 0.8: 
+             return match_id
+        return None
 
     def _keyword_search(self, state: AgentState) -> Optional[str]:
         query = state["input"].lower()
-        sql_keywords = {"table", "column", "schema", "select", "insert", "update", "delete", "row", "database"}
-        api_keywords = {"endpoint", "service", "call", "invoke", "post", "get", "put", "delete", "api"}
-        rag_keywords = {"specification", "spec", "protocol", "standard", "documentation"}
+        sql_keywords = {"sql", "select *", "from table", "database schema"}
+        api_keywords = {"api endpoint", "invoke service", "post request", "http get"}
+        rag_keywords = {"documentation", "spec summary", "protocol definition"}
 
         if any(word in query for word in sql_keywords):
             return "sql_agent"
