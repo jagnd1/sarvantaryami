@@ -1,7 +1,7 @@
 # services/sql_agent.py
 
 from typing import Optional, TypedDict
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langgraph.graph import StateGraph, END
 from langchain_community.utilities.sql_database import SQLDatabase
@@ -9,11 +9,13 @@ from langchain_community.tools.sql_database.tool import QuerySQLDatabaseTool
 from langchain_ollama import ChatOllama
 
 
+from infrastructure.config import settings
+
 # llm
-llm = ChatOllama(model="mistral")
+llm = ChatOllama(model=settings.LLM_MODEL, base_url=settings.OLLAMA_BASE_URL)
 
 # sql agent
-db_uri = "postgresql+psycopg2://entity:password@192.168.1.105:5433/entdb"
+db_uri = settings.DB_URI
 db = SQLDatabase.from_uri(db_uri)
 sql_tool = QuerySQLDatabaseTool(db=db)
 
@@ -37,6 +39,10 @@ class SqlAgentState(TypedDict):
     query: Optional[str]
     result: Optional[str]
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # list all the tables
 def list_tables_node_fn(state: SqlAgentState) -> SqlAgentState:
     tables = db.get_usable_table_names()
@@ -51,13 +57,13 @@ def select_table_node_fn(state: SqlAgentState) -> SqlAgentState:
     selected = selected.strip()
     if selected not in state["table_list"]:
         raise ValueError(f"selected table '{selected}' is not in the available list: {state['table_list']}")
-    print(f"selected table: {selected}")
+    logger.info(f"selected table: {selected}")
     return {**state, "selected_table": selected}
 
 def generate_execute_sql_node_fn(state: SqlAgentState) -> SqlAgentState:
     if not state["selected_table"]:
         raise ValueError("no table selected for SQL generation")
-    print(f"selected table: {state['selected_table']}")
+    logger.info(f"selected table: {state['selected_table']}")
     schema = db.get_table_info([state["selected_table"]])
     sql_query = sql_gen_chain.invoke({
         "input": state["input"],
@@ -67,12 +73,20 @@ def generate_execute_sql_node_fn(state: SqlAgentState) -> SqlAgentState:
     sql_query = sql_query.strip()
     if not sql_query:
         raise ValueError("generated sql query is empty")
-    print(f"generated sql query: {sql_query}")
+    logger.info(f"generated sql query: {sql_query}")
+    
+    from tenacity import retry, stop_after_attempt, wait_fixed
+    
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(1))
+    def execute_sql_safe(query):
+        return sql_tool.run(query)
+
     try:
-        result = sql_tool.run(sql_query)
+        result = execute_sql_safe(sql_query)
     except Exception as e:
+        logger.error(f"error executing sql query: {e}")
         raise ValueError(f"error executing sql query: {e}")
-    print(f"sql query: {sql_query}, result: {result}")
+    logger.info(f"sql query: {sql_query}, result: {result}")
     return {"input": state["input"], "selected_table": state["selected_table"], "query": sql_query, 
             "result": result}
 

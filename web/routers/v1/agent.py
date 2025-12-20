@@ -1,14 +1,14 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Depends
-from web.schema.chat import QueryInput, QueryResponse
-from usecase.chat_usecase import ChatUseCase
-from web.dependencies import get_chat_usecase
+from web.schema.agent import QueryInput, QueryResponse
+from usecase.agent_usecase import AgentUseCase
+from web.dependencies import get_agent_usecase
 
 router = APIRouter()
 
 @router.post("/ask", response_model=QueryResponse)
 async def ask(
     input: QueryInput, 
-    usecase: ChatUseCase = Depends(get_chat_usecase)
+    usecase: AgentUseCase = Depends(get_agent_usecase)
 ):
     try:
         res = await usecase.ask(input.query)
@@ -20,7 +20,7 @@ async def ask(
 async def upload_doc(
     file: UploadFile = File(...), 
     bg_tasks: BackgroundTasks = None,
-    usecase: ChatUseCase = Depends(get_chat_usecase)
+    usecase: AgentUseCase = Depends(get_agent_usecase)
 ):
     try:
         file_bytes = await file.read()

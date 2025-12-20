@@ -18,15 +18,15 @@ services:
       timeout: 5s
       retries: 5
 
-  fmcb_service:
+  agent_service:
     build:
       context: .
-      dockerfile: Dockerfile.fmcb
-    container_name: fmcb_cont
+      dockerfile: Dockerfile.agent
+    container_name: agent_cont
     ports:
-      - "8002:8002"
+      - "8010:8001"
     volumes:
-      - .:/fmcb
+      - .:/agent
     depends_on:
       - llm_service
       - qdrant_server
@@ -34,7 +34,7 @@ services:
       - OLLAMA_HOST=http://llm_service:11434
       - QDRANT_HOST=http://qdrant:6333
       - DB_URI=postgresql+psycopg2://entity:password@host.docker.internal:5433/entdb
-    working_dir: /fmcb
+    working_dir: /agent
     platform: linux/arm64
     restart: unless-stopped
 

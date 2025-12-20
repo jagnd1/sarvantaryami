@@ -1,7 +1,7 @@
 from adapters.agents.lc_agent import SarvantaryamiAgent
 from adapters.upload import _upload_doc
 
-class ChatUseCase:
+class AgentUseCase:
     def __init__(self, agent_service: SarvantaryamiAgent):
         self.agent = agent_service
 

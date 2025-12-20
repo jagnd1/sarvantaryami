@@ -48,7 +48,7 @@ env/
 .DS_Store
 
 # Project Specific
-fm-iss/
+pg_service/
 ollama_data/
 qdrant_data/
 docker_data/

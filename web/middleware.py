@@ -26,9 +26,9 @@ class ReqIDExceptionMiddleware:
         # Generate request ID
         req_id = str(uuid.uuid4())
         req = Request(scope)
-        # Store in scope state slightly differently than starlette default to match fm-iss if needed
-        # but usually request.state is used. fm-iss used scope['state'] manually.
-        # We will follow fm-iss pattern of injecting into scope['state'].
+        # Store in scope state slightly differently than starlette default to match pg_service if needed
+        # but usually request.state is used. pg_service used scope['state'] manually.
+        # We will follow pg_service pattern of injecting into scope['state'].
         if 'state' not in scope:
             scope['state'] = {}
         scope['state']['request_id'] = req_id
